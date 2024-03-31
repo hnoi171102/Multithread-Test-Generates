@@ -27,7 +27,8 @@ public class ConstraintManager {
 
         // Constraints are separated into 3 parts:
         // Write constraints
-        WriteConstraintsManager.CreateWriteConstraints(ctx, solver, eog, globalVars);
+        WriteConstraintsManager.CreateWriteConstraintsT(ctx, solver, eog, globalVars);
+        //WriteConstraintsManager.CreateWriteConstraints(ctx, solver, eog, globalVars);
         // Read/Write link constraints
         ArrayList<Triplet<String, ReadEventNode, WriteEventNode>> RWLSignatures = RWLConstraintsManager.CreateRWLC_ProgramFromProgram(ctx, solver, eog, globalVars);
         // Order constraints

@@ -58,7 +58,7 @@ public class Main {
 //        Integer timeOut = Integer.parseInt(args[0]);
 //        int numberRequest = Integer.parseInt(args[1]);
         Integer timeOut = 100; // Timeout value
-        String[] filePaths = { "D:\\robot\\Multithread_Verification\\MTV\\Benchmark\\sv_comp\\stateful01-2.c" };
+        String[] filePaths = {"D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\triangular-longer-1.c"};
         for (String path : filePaths) {
             paths.add(path);
         }
@@ -123,25 +123,27 @@ public class Main {
         int numberConstraints = solver.getAssertions().length;
 
         long statSolveConstraints = System.currentTimeMillis();
-
+        long numtest = 0;
         while(solver.check() == Status.SATISFIABLE) {
-            System.out.println("SATISFIABLE.Found the test");
+//            System.out.println("SATISFIABLE.Found the test");
+            numtest += 1;
             Model model = solver.getModel();
             ArrayList<String> signatures = new ArrayList<String>();
             for (FuncDecl decl : model.getDecls()) {
                 String varName = decl.getName().toString();
                 Expr varExpr = ctx.mkConst(decl.getName(), decl.getRange());
                 Expr valueExpr = model.getConstInterp(varExpr);
-                System.out.println(decl.getName() + " = " + model.getConstInterp(decl));
+//                if(!valueExpr.isBool() || !valueExpr.isFalse())
+//                    System.out.println(decl.getName() + " = " + model.getConstInterp(decl));
                 if(valueExpr.isBool())
                 {
                     if (valueExpr.isFalse()) {
                         signatures.add(varName);
                     }
                 }
-                else if (varName.endsWith("_0") && valueExpr != null && valueExpr instanceof IntNum) {
-                    System.out.println(decl.getName() + " = " + model.getConstInterp(decl));
-                }
+//                else if (varName.endsWith("_0") && valueExpr != null && valueExpr instanceof IntNum) {
+//                    System.out.println(decl.getName() + " = " + model.getConstInterp(decl));
+//                }
             }
             Expr[] signals = new Expr[signatures.size()];
             for (int i = 0; i < signatures.size(); i++) {
@@ -150,7 +152,7 @@ public class Main {
             }
             solver.add(ctx.mkAtLeast(signals, 1));
         }
-
+        System.out.println(numtest);
         DebugHelper.print("End solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
         long endSolveConstraints = System.currentTimeMillis();
 

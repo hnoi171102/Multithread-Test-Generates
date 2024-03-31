@@ -24,6 +24,12 @@ public class WriteConstraintsManager {
         CreateWriteConstraint(ctx, solver, trackNode, globalVars);
         eventOrderGraph.ResetVisited();
     }
+
+    public static void CreateWriteConstraintsT(Context ctx, Solver solver, EventOrderGraph eventOrderGraph, ArrayList<IASTDeclaration> globalVars) throws Exception {
+        EventOrderNode trackNode = eventOrderGraph.startNode;
+        CreateWriteConstraintT(ctx, solver, trackNode, globalVars);
+        eventOrderGraph.ResetVisited();
+    }
     private static void CreateWriteConstraint(Context ctx, Solver solver, EventOrderNode node, ArrayList<IASTDeclaration> globalVars) throws Exception {
         if (node == null) {
             return;
@@ -51,6 +57,38 @@ public class WriteConstraintsManager {
         ArrayList<EventOrderNode> nextNodes = node.nextNodes;
         for (EventOrderNode nextNode: nextNodes) {
             CreateWriteConstraint(ctx, solver, nextNode, globalVars);
+        }
+    }
+
+    private static void CreateWriteConstraintT(Context ctx, Solver solver, EventOrderNode node, ArrayList<IASTDeclaration> globalVars) throws Exception {
+        if (node == null) {
+            return;
+        }
+
+        if (node.isVisited) return;
+        node.isVisited = true;
+
+        if (node instanceof WriteEventNode writeNode) {
+            if (writeNode.varPreference.equals(checkPointName)) {
+                solver.add(ctx.mkEq(ctx.mkBoolConst(writeNode.suffixVarPref), ctx.mkBool(true)));
+            }
+            Expr readExpr = CreateCalculation(ctx, writeNode.expression, globalVars);
+            if (readExpr instanceof IntExpr intReadExpr) {
+                if (!writeNode.suffixVarPref.endsWith("_0")) {
+                    IntExpr writeVar = ctx.mkIntConst(writeNode.suffixVarPref);
+                    solver.add(ctx.mkEq(intReadExpr, writeVar));
+                }
+            } else if (readExpr instanceof BoolExpr boolReadExpr) {
+                BoolExpr writeVar = ctx.mkBoolConst(writeNode.suffixVarPref);
+                solver.add(ctx.mkEq(boolReadExpr, writeVar));
+            } else {
+                throw new IllegalArgumentException("Type of " + readExpr.getClass().toString() + " is not supported");
+            }
+        }
+
+        ArrayList<EventOrderNode> nextNodes = node.nextNodes;
+        for (EventOrderNode nextNode: nextNodes) {
+            CreateWriteConstraintT(ctx, solver, nextNode, globalVars);
         }
     }
     private static Expr CreateCalculation(Context ctx, IASTExpression expression, ArrayList<IASTDeclaration> globalVars) throws Exception {
