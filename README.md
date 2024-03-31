@@ -1,2 +1,2 @@
-# Multithread_Verification
- Automatically verify multithreading C/C++ programs
+# Multithread-Test-Generates
+ Automatically generate test case for multithreading C/C++ programs
