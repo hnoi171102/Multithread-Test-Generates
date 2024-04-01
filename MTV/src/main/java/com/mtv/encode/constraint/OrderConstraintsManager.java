@@ -33,7 +33,7 @@ public class OrderConstraintsManager {
                 }
             }
         }
-        CreateNegativeConstraint2(solver, ctx, availableRWLSignatures, readEventTracker, writeEventTracker);
+        CreateOrderConstraintsForGenerateTest(solver, ctx, availableRWLSignatures, readEventTracker, writeEventTracker);
     }
 
     private static void CreateReadTracker(ReadEventNode readEventNode, HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTrackerMap) {
@@ -112,6 +112,39 @@ public class OrderConstraintsManager {
         }
     }
 
+    private static void CreateNegativeConstraint2(Solver solver, Context ctx, ArrayList<String> availableRWLSignatures,
+                                                  Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry,
+                                                  Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEntry,
+                                                 HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker
+                                                  ) {
+        String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry.getKey(), writeEntry.getKey());
+        ArrayList<String> negativeSignatures = new ArrayList<String>();
+        WriteEventNode write2 = findWriteNode(readEntry.getKey());
+        for (EventOrderNode previousWrite: writeEntry.getValue().getValue0())
+        {
+            if(previousWrite instanceof WriteEventNode pW_Write)
+            {
+                if(pW_Write.varPreference.equals(write2.varPreference))
+                    for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> read2: readEventTracker.entrySet()) {
+                        if(read2.getKey().varPreference.equals(pW_Write.varPreference))
+                            negativeSignatures.add(RWLConstraintsManager.CreateRWLCSignature(read2.getKey(), pW_Write));
+                    }
+            }
+        }
+        ArrayList<BoolExpr> availableNegativeSignatures = new ArrayList<>();
+        for (String negativeSignature : negativeSignatures) {
+            if (availableRWLSignatures.contains(negativeSignature)) {
+                availableNegativeSignatures.add(ctx.mkBoolConst(negativeSignature));
+            }
+        }
+        if (availableNegativeSignatures.size() > 0) {
+            BoolExpr negativeExpression = ctx.mkNot(ctx.mkOr(availableNegativeSignatures.toArray(new BoolExpr[0])));
+            BoolExpr fullExpression = ctx.mkImplies(ctx.mkBoolConst(positiveSignature), negativeExpression);
+            solver.add(fullExpression);
+        }
+
+    }
+
     public static WriteEventNode findWriteNode(ReadEventNode readEntry) {
         WriteEventNode writeEntry = null;
         ArrayList<EventOrderNode> nextNodes = readEntry.nextNodes;
@@ -176,13 +209,14 @@ public class OrderConstraintsManager {
         }
 
     }
-    private static void CreateNegativeConstraint2(Solver solver, Context ctx,ArrayList<String> availableRWLSignatures,
+    private static void CreateOrderConstraintsForGenerateTest(Solver solver, Context ctx,ArrayList<String> availableRWLSignatures,
                                                   HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker,
                                                   HashMap<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEventTracker) {
 
         for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry: readEventTracker.entrySet()) {
             for (Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEntry: writeEventTracker.entrySet()) {
                 if (readEntry.getKey().varPreference.equals(writeEntry.getKey().varPreference)) {
+//                    CreateNegativeConstraint2(solver,ctx,availableRWLSignatures,readEntry,writeEntry,readEventTracker);
                     for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry2: readEventTracker.entrySet()) {
                         {
                             if (readEntry2.getKey().varPreference.equals(writeEntry.getKey().varPreference)
@@ -278,7 +312,6 @@ public class OrderConstraintsManager {
          */
 
         ArrayList<String> deducedNegativeSignatures = new ArrayList<>();
-
         // Stored following nodes of write node
         ArrayList<EventOrderNode> followingWNNodes = FindAllFollowingNodes(writeEntry.getKey());
         // Stored following write nodes of write node which have the same var with read node
