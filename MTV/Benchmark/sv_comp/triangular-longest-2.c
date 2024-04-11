@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
 //	if (i > LIMIT || j > LIMIT) {
 //    	ERROR: {reach_error();abort();}
 //  	}
-	check = (i >= LIMIT || j >= LIMIT)
+	check = (i >= 16 || j >= 16)
   	return 0;
 }
 

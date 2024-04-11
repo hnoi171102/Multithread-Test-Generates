@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
   	pthread_t id1, id2;
   	pthread_create(&id1, NULL, t1, NULL);
   	pthread_create(&id2, NULL, t2, NULL);
-	check = (i >= LIMIT || j >= LIMIT)
+	check = (i >= 16 || j >= 16)
   	return 0;
 }
 

@@ -18,12 +18,14 @@ import org.eclipse.cdt.core.dom.ast.IASTFunctionDefinition;
 import org.javatuples.Triplet;
 
 import java.awt.geom.GeneralPath;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 public class Main {
 
@@ -33,11 +35,28 @@ public class Main {
     static boolean enableCFGPrinter = false;
     static boolean enableEOGPrinter = false;
 
+
+    public static ArrayList<String> getTextFilePaths(String directoryPath) {
+        File directory = new File(directoryPath);
+        File[] files = directory.listFiles();
+        ArrayList<String> filePaths = new ArrayList<>();
+
+        if (files != null) {
+            for (File file : files) {
+                filePaths.add(file.getAbsolutePath());
+            }
+        }
+
+        return filePaths;
+    }
+
     public static void main(String[] args) throws Exception {
 //        Integer timeOut = Integer.parseInt(args[0]);
 //        int numberRequest = Integer.parseInt(args[1]);
         Integer timeOut = 100; // Timeout value
-        String[] filePaths = {"D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\triangular-longer-1.c"};
+        String directoryPath = "D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\";
+        ArrayList<String> filePaths = getTextFilePaths(directoryPath);
+        //String[] filePaths = {"D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\peterson-b.c"};
         for (String path : filePaths) {
             paths.add(path);
         }
@@ -64,10 +83,10 @@ public class Main {
             Params timeOutParam = ctx.mkParams();
             timeOutParam.add("timeout", timeOut);
             solver.setParameters(timeOutParam);
-            GenerateTest(filePath, ctx, solver);
-//            ArrayList<ExcellReporter> reporters = new ArrayList<>();
-//            reporters.add(VerifyFile(filePath, ctx, solver));
-//            ExportToExcell.Export(reporters, timeOut);
+
+            ArrayList<ExcellReporter> reporters = new ArrayList<>();
+            reporters.add(GenerateTest(filePath, ctx, solver));
+            ExportToExcell.Export(reporters, timeOut);
 //            reporters.clear();
             DebugHelper.print(filePath + " is verified");
             DebugHelper.print("\n=============================================\n");
@@ -83,11 +102,11 @@ public class Main {
             Params timeOutParam = ctx.mkParams();
             timeOutParam.add("timeout", timeOut);
             solver.setParameters(timeOutParam);
-
-            ArrayList<ExcellReporter> reporters = new ArrayList<>();
-            reporters.add(VerifyFile(filePath, ctx, solver));
-            ExportToExcell.Export(reporters, timeOut);
-            reporters.clear();
+            VerifyFile(filePath, ctx, solver);
+//            ArrayList<ExcellReporter> reporters = new ArrayList<>();
+//            reporters.add(VerifyFile(filePath, ctx, solver));
+//            ExportToExcell.Export(reporters, timeOut);
+            //reporters.clear();
             DebugHelper.print(filePath + " is verified");
             DebugHelper.print("\n=============================================\n");
 
@@ -96,7 +115,7 @@ public class Main {
         }
     }
 
-    public static void GenerateTest(String filePath, Context ctx, Solver solver) throws Exception {
+    public static ExcellReporter GenerateTest(String filePath, Context ctx, Solver solver) throws Exception {
         DebugHelper.print("Start solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
         long buildConstraintsTime = BuildConstraints(filePath, ctx, solver);
         int numberConstraints = solver.getAssertions().length;
@@ -129,17 +148,21 @@ public class Main {
                 Expr expr= ctx.mkBoolConst(signatures.get(i));
                 signals[i] = expr;
             }
+//            System.out.println("\n");
             solver.add(ctx.mkAtLeast(signals, 1));
         }
+
         System.out.println(numtest);
         DebugHelper.print("End solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
         long endSolveConstraints = System.currentTimeMillis();
 
+        ExcellReporter reporter = new ExcellReporter(filePath.substring(filePath.lastIndexOf("\\") + 1), LocalDateTime.now(), new ArrayList<String>(Files.readAllLines(Paths.get(filePath))),
+                numtest, numberConstraints, buildConstraintsTime, endSolveConstraints - statSolveConstraints);
 //        ExcellReporter reporter = new ExcellReporter();
 //
-//        return reporter;
+        return reporter;
     }
-    public static ExcellReporter VerifyFile(String filePath, Context ctx, Solver solver) throws Exception {
+    public static void VerifyFile(String filePath, Context ctx, Solver solver) throws Exception {
 
         DebugHelper.print("Start solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
         long buildConstraintsTime = BuildConstraints(filePath, ctx, solver);
@@ -161,10 +184,10 @@ public class Main {
         DebugHelper.print("End solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
         long endSolveConstraints = System.currentTimeMillis();
 
-        ExcellReporter reporter = new ExcellReporter(filePath.substring(filePath.lastIndexOf("\\") + 1), LocalDateTime.now(), new ArrayList<String>(Files.readAllLines(Paths.get(filePath))),
-                verificationResult, numberConstraints, buildConstraintsTime, endSolveConstraints - statSolveConstraints);
-
-        return reporter;
+//        ExcellReporter reporter = new ExcellReporter(filePath.substring(filePath.lastIndexOf("\\") + 1), LocalDateTime.now(), new ArrayList<String>(Files.readAllLines(Paths.get(filePath))),
+//                verificationResult, numberConstraints, buildConstraintsTime, endSolveConstraints - statSolveConstraints);
+//
+//        return reporter;
     }
 
     public static void PrintAssertions(Solver solver) {

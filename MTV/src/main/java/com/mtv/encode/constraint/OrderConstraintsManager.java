@@ -112,25 +112,52 @@ public class OrderConstraintsManager {
         }
     }
 
-    private static void CreateNegativeConstraint2(Solver solver, Context ctx, ArrayList<String> availableRWLSignatures,
-                                                  Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry,
-                                                  Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEntry,
-                                                 HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker
-                                                  ) {
-        String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry.getKey(), writeEntry.getKey());
-        ArrayList<String> negativeSignatures = new ArrayList<String>();
-        WriteEventNode write2 = findWriteNode(readEntry.getKey());
-        for (EventOrderNode previousWrite: writeEntry.getValue().getValue0())
-        {
-            if(previousWrite instanceof WriteEventNode pW_Write)
-            {
-                if(pW_Write.varPreference.equals(write2.varPreference))
-                    for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> read2: readEventTracker.entrySet()) {
-                        if(read2.getKey().varPreference.equals(pW_Write.varPreference))
-                            negativeSignatures.add(RWLConstraintsManager.CreateRWLCSignature(read2.getKey(), pW_Write));
-                    }
+    public static boolean IsInput(EventOrderNode nodeEntry)
+    {
+        while (true) {
+            if (nodeEntry.nextNodes.size() > 1) {
+                return true;
+            }
+            if (nodeEntry.interleavingTracker.GetMarker().toString().equals("End"))
+                return false;
+            ArrayList<EventOrderNode> nextNodes = nodeEntry.nextNodes;
+            for (EventOrderNode node : nextNodes) {
+                nodeEntry = node;
             }
         }
+    }
+    private static void CreateNegativeConstraintInput(Solver solver, Context ctx, ArrayList<String> availableRWLSignatures,
+                                                  Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry,
+                                                  Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEntry,
+                                                 HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker,
+                                                  HashMap<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEventTracker
+                                                  ) {
+        String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry.getKey(), writeEntry.getKey());
+        WriteEventNode write1 = findWriteNode(readEntry.getKey());
+        if(!availableRWLSignatures.contains(positiveSignature) && !IsInput(writeEntry.getKey()) && write1!=null)
+        {
+            return;
+        }
+
+        for (Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writetemp: writeEventTracker.entrySet())
+        {
+            if(IsInput(writetemp.getKey()) && writetemp.getKey().varPreference.equals(write1.varPreference))
+            {
+                write1 = writetemp.getKey();
+                break;
+            }
+        }
+
+        ArrayList<String> negativeSignatures = new ArrayList<String>();
+
+        for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> read2: readEventTracker.entrySet()) {
+            if(read2.getKey().varPreference.equals(writeEntry.getKey().varPreference) && !read2.getKey().suffixVarPref.equals(readEntry.getKey().suffixVarPref)) {
+                WriteEventNode write2 = findWriteNode(read2.getKey());
+                if(write2!=null && write2.varPreference.equals(readEntry.getKey().varPreference))
+                    negativeSignatures.add(RWLConstraintsManager.CreateRWLCSignature(read2.getKey(), write1));
+            }
+        }
+
         ArrayList<BoolExpr> availableNegativeSignatures = new ArrayList<>();
         for (String negativeSignature : negativeSignatures) {
             if (availableRWLSignatures.contains(negativeSignature)) {
@@ -163,7 +190,7 @@ public class OrderConstraintsManager {
         }
     }
 
-    public static boolean IsChecked(ReadEventNode readEntry)
+    public static boolean IsOutput(ReadEventNode readEntry)
     {
         EventOrderNode nodeEntry = readEntry;
 
@@ -180,16 +207,20 @@ public class OrderConstraintsManager {
         }
     }
 
-    public static void CreateNegativeConstraintRead1(Solver solver, Context ctx,ReadEventNode read1,ReadEventNode readEntry,WriteEventNode writeEntry,
-                                                     HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker)
+    public static void CreateNegativeConstraintOutput(Solver solver, Context ctx,ReadEventNode read1,ReadEventNode readEntry,WriteEventNode writeEntry,
+                                                      ArrayList<String> availableRWLSignatures,
+                                                    HashMap<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEventTracker)
     {
         WriteEventNode write2 = findWriteNode(readEntry);
         if(write2.varPreference.equals(writeEntry.varPreference)){
             String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(read1, writeEntry);
             String negativeSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry, writeEntry);
-            BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
-            BoolExpr fullExpression = ctx.mkImplies(ctx.mkBoolConst(positiveSignature), negativeExpression);
-            solver.add(fullExpression);
+
+            if(availableRWLSignatures.contains(negativeSignature) && availableRWLSignatures.contains(positiveSignature)) {
+                BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
+                BoolExpr fullExpression = ctx.mkImplies(ctx.mkBoolConst(positiveSignature), negativeExpression);
+                solver.add(fullExpression);
+            }
             return ;
         }
         for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry2: readEventTracker.entrySet())
@@ -200,9 +231,12 @@ public class OrderConstraintsManager {
                     String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(read1, writeEntry);
                     String positiveSignature2 = RWLConstraintsManager.CreateRWLCSignature(readEntry, writeEntry);
                     String negativeSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry2.getKey(),write2);
-                    BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
-                    BoolExpr fullExpression = ctx.mkImplies(ctx.mkAnd(ctx.mkBoolConst(positiveSignature) , ctx.mkBoolConst(positiveSignature2)), negativeExpression);
-                    solver.add(fullExpression);
+                    if(availableRWLSignatures.contains(negativeSignature) && availableRWLSignatures.contains(positiveSignature) && availableRWLSignatures.contains(positiveSignature2))
+                    {
+                        BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
+                        BoolExpr fullExpression = ctx.mkImplies(ctx.mkAnd(ctx.mkBoolConst(positiveSignature) , ctx.mkBoolConst(positiveSignature2)), negativeExpression);
+                        solver.add(fullExpression);
+                    }
                     return ;
                 }
             }
@@ -216,7 +250,8 @@ public class OrderConstraintsManager {
         for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry: readEventTracker.entrySet()) {
             for (Map.Entry<WriteEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> writeEntry: writeEventTracker.entrySet()) {
                 if (readEntry.getKey().varPreference.equals(writeEntry.getKey().varPreference)) {
-//                    CreateNegativeConstraint2(solver,ctx,availableRWLSignatures,readEntry,writeEntry,readEventTracker);
+                    if(IsInput(writeEntry.getKey()))
+                        CreateNegativeConstraintInput(solver,ctx,availableRWLSignatures,readEntry,writeEntry,readEventTracker,writeEventTracker);
                     for (Map.Entry<ReadEventNode, Pair<ArrayList<EventOrderNode>, ArrayList<EventOrderNode>>> readEntry2: readEventTracker.entrySet()) {
                         {
                             if (readEntry2.getKey().varPreference.equals(writeEntry.getKey().varPreference)
@@ -229,12 +264,14 @@ public class OrderConstraintsManager {
                                         && write1.varPreference.equals(write2.varPreference) && write1.varPreference.equals(writeEntry.getKey().varPreference)) {
                                     String positiveSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry.getKey(), writeEntry.getKey());
                                     String negativeSignature = RWLConstraintsManager.CreateRWLCSignature(readEntry2.getKey(), writeEntry.getKey());
-                                    BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
-                                    BoolExpr fullExpression = ctx.mkImplies(ctx.mkBoolConst(positiveSignature), negativeExpression);
-                                    solver.add(fullExpression);
+                                    if(availableRWLSignatures.contains(negativeSignature) && availableRWLSignatures.contains(positiveSignature)) {
+                                        BoolExpr negativeExpression = ctx.mkNot(ctx.mkBoolConst(negativeSignature));
+                                        BoolExpr fullExpression = ctx.mkImplies(ctx.mkBoolConst(positiveSignature), negativeExpression);
+                                        solver.add(fullExpression);
+                                    }
                                 }
-                                if(IsChecked(read1)){
-                                    CreateNegativeConstraintRead1(solver,ctx,read1,read2,writeEntry.getKey(),readEventTracker);
+                                if(IsOutput(read1)){
+                                    CreateNegativeConstraintOutput(solver,ctx,read1,read2,writeEntry.getKey(),availableRWLSignatures,readEventTracker);
                                 }
                             }
                         }

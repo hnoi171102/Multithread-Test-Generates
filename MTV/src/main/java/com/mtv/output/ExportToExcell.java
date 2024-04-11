@@ -118,15 +118,15 @@ public class ExportToExcell {
         Label sourceCode = new Label(3, row, sourceCodeContent);
         sheet.addCell(sourceCode);
 
-        Label verificationResult = new Label(4, row, reporter.verificationResult);
+        Label verificationResult = new Label(4, row, reporter.numbertestcase + "");
         WritableCellFormat resultFormat = new WritableCellFormat();
-        if (reporter.verificationResult.equals("SATISFIABLE")) {
-            resultFormat.setBackground(Colour.RED);
-        } else if (reporter.verificationResult.equals("UNSATISFIABLE")) {
-            resultFormat.setBackground(Colour.BRIGHT_GREEN);
-        } else {
-            resultFormat.setBackground(Colour.YELLOW);
-        }
+//        if (reporter.verificationResult.equals("SATISFIABLE")) {
+//            resultFormat.setBackground(Colour.RED);
+//        } else if (reporter.verificationResult.equals("UNSATISFIABLE")) {
+//            resultFormat.setBackground(Colour.BRIGHT_GREEN);
+//        } else {
+//            resultFormat.setBackground(Colour.YELLOW);
+//        }
         verificationResult.setCellFormat(resultFormat);
         sheet.addCell(verificationResult);
 
@@ -149,22 +149,22 @@ public class ExportToExcell {
         solveTime.setCellFormat(solveTimeFormat);
         sheet.addCell(solveTime);
 
-        String finalResultStr = (reporter.solveTime >= timeout)?
-                "NOT SURE" : (reporter.verificationResult.equals("SATISFIABLE"))?
-                    "NOT SAFE" : "SAFE";
-        Label finalResult = new Label(9, row, finalResultStr);
-        WritableCellFormat finalResultFormat = new WritableCellFormat();
-        if (finalResultStr.equals("NOT SURE")) {
-            finalResultFormat.setBackground(Colour.YELLOW);
-        } else if (finalResultStr.equals("NOT SAFE")) {
-            finalResultFormat.setBackground(Colour.RED);
-        } else if (finalResultStr.equals("SAFE")){
-            finalResultFormat.setBackground(Colour.BRIGHT_GREEN);
-        } else {
-
-        }
-        finalResult.setCellFormat(finalResultFormat);
-        sheet.addCell(finalResult);
+//        String finalResultStr = (reporter.solveTime >= timeout)?
+//                "NOT SURE" : (reporter.verificationResult.equals("SATISFIABLE"))?
+//                    "NOT SAFE" : "SAFE";
+//        Label finalResult = new Label(9, row, finalResultStr);
+//        WritableCellFormat finalResultFormat = new WritableCellFormat();
+//        if (finalResultStr.equals("NOT SURE")) {
+//            finalResultFormat.setBackground(Colour.YELLOW);
+//        } else if (finalResultStr.equals("NOT SAFE")) {
+//            finalResultFormat.setBackground(Colour.RED);
+//        } else if (finalResultStr.equals("SAFE")){
+//            finalResultFormat.setBackground(Colour.BRIGHT_GREEN);
+//        } else {
+//
+//        }
+//        finalResult.setCellFormat(finalResultFormat);
+//        sheet.addCell(finalResult);
 
     }
 }

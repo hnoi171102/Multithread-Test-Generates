@@ -8,7 +8,6 @@
 
 #include <pthread.h>
 int i = 3, j = 6;
-int LIMIT = 16;
 bool check;
 void *t1(void *arg) {
 	i = j + 1;
@@ -28,7 +27,7 @@ int main(int argc, char **argv) {
   	pthread_t id1, id2;
   	pthread_create(&id1, NULL, t1, NULL);
   	pthread_create(&id2, NULL, t2, NULL);
-	check = (i >= LIMIT || j >= LIMIT)
+	check = (i >= 16 || j >= 16)
   	return 0;
 }
 

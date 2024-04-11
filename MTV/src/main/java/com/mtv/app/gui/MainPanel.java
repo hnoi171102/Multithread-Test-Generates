@@ -1,7 +1,9 @@
 package com.mtv.app.gui;
 
 
+import com.microsoft.z3.*;
 import com.mtv.app.Main;
+import com.mtv.debug.DebugHelper;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
@@ -24,6 +26,17 @@ import java.util.Vector;
 
 
 public class MainPanel extends JPanel {
+
+	static JTextPane resultTA;
+	JTextPane result;
+	JTextArea sourceView;
+	JTextArea smtInput;
+
+	static JTextArea testDrive;
+	JTextArea reducedtest;
+
+	JTextArea smtLog;
+	JTextArea metaSMT;
 
 	public MainPanel() {
 		core = new Core();
@@ -225,6 +238,19 @@ public class MainPanel extends JPanel {
 		});
 		head.add(vertificationBtn);
 
+		runCoverageBtn = new JButton("Run Coverage Analysis");
+		runCoverageBtn.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (file != null) {
+					runGcov(file.getAbsolutePath());
+				} else {
+					JOptionPane.showMessageDialog(MainPanel.this, "No file selected for coverage analysis.", "Error", JOptionPane.ERROR_MESSAGE);
+				}
+			}
+		});
+		head.add(runCoverageBtn);
+
 		return head;
 	}
 
@@ -262,7 +288,7 @@ public class MainPanel extends JPanel {
 		//	JScrollPane spResult = new JScrollPane(resultTA);
 		tabbedpane.add("Number Test", new JScrollPane(resultTA));
 		tabbedpane.add("Test Drive", new JScrollPane(testDrive));
-		tabbedpane.add("Number test reduced", new JScrollPane(reducedtest));
+//		tabbedpane.add("Number test reduced", new JScrollPane(reducedtest));
 		//tabbedpane.add("Solver log", new JScrollPane(smtLog));
 		//tabbedpane.add("MetaSMT", new JScrollPane(metaSMT));
 
@@ -439,6 +465,68 @@ public class MainPanel extends JPanel {
 		}
 	}
 
+	private void displayGcovOutput(String gcovOutput) {
+		// Create the frame (or dialog)
+		JFrame outputFrame = new JFrame("Gcov Output");
+		outputFrame.setSize(600, 400); // Set the size of the window
+		outputFrame.setLocationRelativeTo(null); // Center the window
+
+		// Create a text area that is wrapped in a scroll pane
+		JTextArea outputTextArea = new JTextArea(20, 50);
+		outputTextArea.setText(gcovOutput); // Set the text to the gcov output
+		outputTextArea.setEditable(false); // Make the text area non-editable
+		JScrollPane scrollPane = new JScrollPane(outputTextArea);
+
+		// Add the scroll pane to the frame
+		outputFrame.add(scrollPane);
+
+		// Make sure the frame closes properly
+		outputFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+		// Show the frame
+		outputFrame.setVisible(true);
+	}
+	private void runGcov(String filePath) {
+		try {
+			String directoryPath = new File(filePath).getParent();
+			String fileNameWithoutExtension = new File(filePath).getName().replaceFirst("[.][^.]+$", "");
+			String cFilename = fileNameWithoutExtension + ".c";
+			String objectFileName = fileNameWithoutExtension + ".o";
+			String executableName = fileNameWithoutExtension; // Windows executables have the .exe extension
+
+			// Step 1: Compile to .o file with gcov support
+			String compileToObjectCommand = String.format("gcc -c -fprofile-arcs -ftest-coverage -o %s %s", objectFileName, cFilename);
+			Process compileToObjectProcess = new ProcessBuilder("cmd", "/c", compileToObjectCommand).directory(new File(directoryPath)).start();
+			compileToObjectProcess.waitFor();
+
+			// Step 2: Link .o file to create executable
+			String linkCommand = String.format("gcc -fprofile-arcs -ftest-coverage -o %s %s -pthread", executableName, cFilename);
+			Process linkProcess = new ProcessBuilder("cmd", "/c", linkCommand).directory(new File(directoryPath)).start();
+			linkProcess.waitFor();
+
+			// Step 3: Execute the compiled program
+			String executeCommand = String.format(".\\%s", executableName);
+			Process executeProcess = new ProcessBuilder("cmd", "/c", executeCommand).directory(new File(directoryPath)).start();
+			executeProcess.waitFor();
+
+			// Step 4: Run gcov to generate the coverage report
+			String gcovCommand = String.format("gcov %s", cFilename);
+			Process gcovProcess = new ProcessBuilder("cmd", "/c", gcovCommand).directory(new File(directoryPath)).start();
+			gcovProcess.waitFor();
+
+			// Read and display the gcov output
+			BufferedReader reader = new BufferedReader(new InputStreamReader(gcovProcess.getInputStream()));
+			StringBuilder gcovOutput = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				gcovOutput.append(line).append("\n");
+			}
+			displayGcovOutput(gcovOutput.toString()); // Implement this to display output in your GUI
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private void generateTest() {
 		ArrayList<String> paths = new ArrayList<>();
 		Integer timeOut = 100; // Timeout value
@@ -460,7 +548,7 @@ public class MainPanel extends JPanel {
 		// Only call GenerateTests if there are paths to process
 		if (!paths.isEmpty()) {
 			try {
-				Main.GenerateTests(paths, timeOut);
+				GenerateTests(paths, timeOut);
 			} catch (Exception e) {
 				e.printStackTrace();
 				JOptionPane.showMessageDialog(this, "Error generating tests: " + e.getMessage());
@@ -470,6 +558,77 @@ public class MainPanel extends JPanel {
 		}
 	}
 
+	public  static void GenerateTests(ArrayList<String> filePaths, Integer timeOut) throws Exception {
+		for (String filePath : filePaths) {
+			Context ctx = new Context();
+			Solver solver = ctx.mkSolver();
+			Params timeOutParam = ctx.mkParams();
+			timeOutParam.add("timeout", timeOut);
+			solver.setParameters(timeOutParam);
+			GenerateTest(filePath, ctx, solver);
+//            ArrayList<ExcellReporter> reporters = new ArrayList<>();
+//            reporters.add(VerifyFile(filePath, ctx, solver));
+//            ExportToExcell.Export(reporters, timeOut);
+//            reporters.clear();
+			DebugHelper.print(filePath + " is verified");
+			DebugHelper.print("\n=============================================\n");
+
+			solver.reset();
+			ctx.close();
+		}
+	}
+
+	public static void GenerateTest(String filePath, Context ctx, Solver solver) throws Exception {
+		DebugHelper.print("Start solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
+		long buildConstraintsTime = Main.BuildConstraints(filePath, ctx, solver);
+		int numberConstraints = solver.getAssertions().length;
+
+		long statSolveConstraints = System.currentTimeMillis();
+		ArrayList<String> expressions = new ArrayList<String>();
+		long numtest = 0;
+		while(solver.check() == Status.SATISFIABLE) {
+
+			numtest += 1;
+			Model model = solver.getModel();
+			ArrayList<String> signatures = new ArrayList<String>();
+			for (FuncDecl decl : model.getDecls()) {
+				String varName = decl.getName().toString();
+				Expr varExpr = ctx.mkConst(decl.getName(), decl.getRange());
+				Expr valueExpr = model.getConstInterp(varExpr);
+//                if(!valueExpr.isBool() || !valueExpr.isFalse())
+//                    System.out.println(decl.getName() + " = " + model.getConstInterp(decl));
+				if(valueExpr.isBool())
+				{
+					if (valueExpr.isFalse()) {
+						signatures.add(varName);
+					}
+				}
+				if (varName.endsWith("_0") && valueExpr != null && valueExpr instanceof IntNum) {
+					expressions.add(decl.getName() + " = " + model.getConstInterp(decl));
+				}
+			}
+			Expr[] signals = new Expr[signatures.size()];
+			for (int i = 0; i < signatures.size(); i++) {
+				Expr expr= ctx.mkBoolConst(signatures.get(i));
+				signals[i] = expr;
+			}
+//            System.out.println("\n");
+			expressions.add("");
+			solver.add(ctx.mkAtLeast(signals, 1));
+		}
+
+		resultTA.setText(String.valueOf(numtest));
+		String expressionsText = String.join("\n", expressions);
+
+// Update JTextPane with the combined String
+		testDrive.setText(expressionsText);
+		DebugHelper.print("End solve " + filePath.substring(filePath.lastIndexOf("\\") + 1));
+		long endSolveConstraints = System.currentTimeMillis();
+
+//        ExcellReporter reporter = new ExcellReporter();
+//
+//        return reporter;
+	}
 	private void refresh() {
 		if (file == null)
 			return;
@@ -647,26 +806,15 @@ public class MainPanel extends JPanel {
 	JButton openBtn;
 	JButton vertificationBtn;
 
+	JButton runCoverageBtn;
 	JButton GenerateBtn;
 	JButton refreshBtn;
 
 	JList<String> list;
 	String[] methodSignatures;	// danh sách tên các method
 
-
 	//	JTextArea preconditionTA;
 //	JTextArea postconditionTA;
-	JTextPane resultTA;
-	JTextPane result;
-	JTextArea sourceView;
-	JTextArea smtInput;
-
-	JTextArea testDrive;
-	JTextArea reducedtest;
-
-
-	JTextArea smtLog;
-	JTextArea metaSMT;
 
 	private DefaultMutableTreeNode root;
 
@@ -677,7 +825,6 @@ public class MainPanel extends JPanel {
 	int index = -1;
 
 	static String title = "Công cụ kiểm chứng tính chất của chương trình";
-
 	static String SATLOG = " SAT(post condtion is alwways true)";
 	static String UNSATLOG = "UNSAT(post condition is not always true, example: ";
 }

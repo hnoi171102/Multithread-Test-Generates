@@ -12,7 +12,7 @@ int x;
 int n = 20;
 bool check;
 void* thr1(void* arg) {
-    check = (x > n);
+    check = (x > 5);
 }
 void* thr2(void* arg) {
     int t;

@@ -18,7 +18,7 @@ void *setThread(void *param) {
 
 void *checkThread(void *param) {
   //assert((a == 0 && b == 0) || (a == 1 && b == -1));
-  check = ((a != 0 || b != 0) && (a != 1 || b != -1) && false);
+  check = ((a != 0 || b != 0) && (a != 1 || b != -1));
   return NULL;
 }
 
@@ -61,7 +61,7 @@ int main() {
 	pthread_create(&set29, NULL, setThread, NULL);
 	pthread_create(&set30, NULL, setThread, NULL);
 	
-	pthread_create(&check1, NULL, checkThread, NULL);
+//	pthread_create(&check1, NULL, checkThread, NULL);
 	
 	pthread_join(set1, NULL);
 	pthread_join(set2, NULL);
@@ -96,7 +96,10 @@ int main() {
 	pthread_join(set29, NULL);
 	pthread_join(set30, NULL);
 	
-	pthread_join(check1, NULL);
+//	pthread_join(check1, NULL);
+
+//	check = ((a != 0 || b != 0) && (a != 1 || b != -1));
+
 	return 0;
 }
 

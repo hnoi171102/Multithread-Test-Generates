@@ -60,6 +60,21 @@ public class WriteConstraintsManager {
         }
     }
 
+    public static boolean IsInput(EventOrderNode nodeEntry)
+    {
+        while (true) {
+            if (nodeEntry.nextNodes.size() > 1) {
+                return true;
+            }
+            if (nodeEntry.interleavingTracker.GetMarker().toString().equals("End"))
+                return false;
+            ArrayList<EventOrderNode> nextNodes = nodeEntry.nextNodes;
+            for (EventOrderNode node : nextNodes) {
+                nodeEntry = node;
+            }
+        }
+    }
+
     private static void CreateWriteConstraintT(Context ctx, Solver solver, EventOrderNode node, ArrayList<IASTDeclaration> globalVars) throws Exception {
         if (node == null) {
             return;
@@ -74,7 +89,7 @@ public class WriteConstraintsManager {
             }
             Expr readExpr = CreateCalculation(ctx, writeNode.expression, globalVars);
             if (readExpr instanceof IntExpr intReadExpr) {
-                if (!writeNode.suffixVarPref.endsWith("_0")) {
+                if (!IsInput(writeNode)) {
                     IntExpr writeVar = ctx.mkIntConst(writeNode.suffixVarPref);
                     solver.add(ctx.mkEq(intReadExpr, writeVar));
                 }

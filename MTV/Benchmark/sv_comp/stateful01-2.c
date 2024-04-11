@@ -17,7 +17,7 @@ void * thread1(void * arg)
   	return 0;
 }
 void * thread2(void * arg)
-{  
+{
   	data1+=5;
   	data2-=6;
   	return 0;

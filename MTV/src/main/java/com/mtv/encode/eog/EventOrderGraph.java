@@ -55,7 +55,7 @@ public class EventOrderGraph {
     private ArrayList<EventOrderNode> CheckDeadEnd(ArrayList<EventOrderNode> nodeList) {
         ArrayList<EventOrderNode> result = new ArrayList<>();
         for (EventOrderNode node : nodeList) {
-            if (node.nextNodes.size() > 0) {
+            if (node!= null && node.nextNodes.size() > 0) {
                 result.add(node);
             }
         }
@@ -135,7 +135,7 @@ public class EventOrderGraph {
         if (!connectPoint.nextNodes.contains(other.startNode)) {
             connectPoint.nextNodes.add(other.startNode);
         }
-        if (!other.startNode.previousNodes.contains(connectPoint)) {
+        if (other.startNode!= null && !other.startNode.previousNodes.contains(connectPoint)) {
             other.startNode.previousNodes.add(connectPoint);
         }
         SearchEndNodes();
