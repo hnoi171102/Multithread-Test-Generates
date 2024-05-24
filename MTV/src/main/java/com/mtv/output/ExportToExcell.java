@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class ExportToExcell {
-    private static String filePath = "MTV_Report.xls";
+    private static String filePath = "MTV_test_Report.xls";
     private static String sheetName = "Report sheet";
 
     private static File file = null;
@@ -73,13 +73,13 @@ public class ExportToExcell {
         Label programName = new Label(1, labelRow, "Program");
         sheet.addCell(programName);
 
-        Label time = new Label(2, labelRow, "Verify date");
+        Label time = new Label(2, labelRow, "Date");
         sheet.addCell(time);
 
         Label source = new Label(3, labelRow, "Source");
         sheet.addCell(source);
 
-        Label result = new Label(4, labelRow, "Verification result");
+        Label result = new Label(4, labelRow, "Number test case result");
         sheet.addCell(result);
 
         Label constraints = new Label(5, labelRow, "Number of generated constraints");

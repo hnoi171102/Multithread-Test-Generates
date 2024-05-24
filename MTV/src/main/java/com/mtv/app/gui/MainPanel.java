@@ -24,6 +24,11 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.Vector;
 
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.regex.*;
+
 
 public class MainPanel extends JPanel {
 
@@ -35,6 +40,7 @@ public class MainPanel extends JPanel {
 	static JTextArea testDrive;
 	JTextArea reducedtest;
 
+	static ArrayList<Map<String, Integer>> testdrive = new ArrayList<>();
 	JTextArea smtLog;
 	JTextArea metaSMT;
 
@@ -486,6 +492,33 @@ public class MainPanel extends JPanel {
 		// Show the frame
 		outputFrame.setVisible(true);
 	}
+
+    public static void modifySourceFile(String filePath, Map<String, Integer> variableUpdates) {
+        try {
+            Path path = Paths.get(filePath);
+            List<String> lines = Files.readAllLines(path);
+            List<String> modifiedLines = new ArrayList<>();
+
+            for (String line : lines) {
+                for (Map.Entry<String, Integer> entry : variableUpdates.entrySet()) {
+                    String variable = entry.getKey();
+                    Integer newValue = entry.getValue();
+                    // Pattern to find the variable initialization (assuming int type)
+                    String regex = "int\\s+" + variable + "\\s*=\\s*[0-9]+;";
+                    if (line.matches(".*" + regex + ".*")) {
+                        line = line.replaceAll(regex, "int " + variable + " = " + newValue + ";");
+                    }
+                }
+                modifiedLines.add(line);
+            }
+
+            Files.write(path, modifiedLines);
+            System.out.println("Source file modified successfully.");
+        } catch (IOException e) {
+            System.out.println("Error modifying the source file: " + e.getMessage());
+        }
+    }
+
 	private void runGcov(String filePath) {
 		try {
 			String directoryPath = new File(filePath).getParent();
@@ -494,34 +527,39 @@ public class MainPanel extends JPanel {
 			String objectFileName = fileNameWithoutExtension + ".o";
 			String executableName = fileNameWithoutExtension; // Windows executables have the .exe extension
 
-			// Step 1: Compile to .o file with gcov support
-			String compileToObjectCommand = String.format("gcc -c -fprofile-arcs -ftest-coverage -o %s %s", objectFileName, cFilename);
-			Process compileToObjectProcess = new ProcessBuilder("cmd", "/c", compileToObjectCommand).directory(new File(directoryPath)).start();
-			compileToObjectProcess.waitFor();
+			//for(Map<String, Integer> variableUpdates: testdrive) {
+				//modifySourceFile(filePath,variableUpdates);
 
-			// Step 2: Link .o file to create executable
-			String linkCommand = String.format("gcc -fprofile-arcs -ftest-coverage -o %s %s -pthread", executableName, cFilename);
-			Process linkProcess = new ProcessBuilder("cmd", "/c", linkCommand).directory(new File(directoryPath)).start();
-			linkProcess.waitFor();
+				// Step 1: Compile to .o file with gcov support
+				String compileToObjectCommand = String.format("gcc -c -fprofile-arcs -ftest-coverage -o %s %s", objectFileName, cFilename);
+				Process compileToObjectProcess = new ProcessBuilder("cmd", "/c", compileToObjectCommand).directory(new File(directoryPath)).start();
+				compileToObjectProcess.waitFor();
 
-			// Step 3: Execute the compiled program
-			String executeCommand = String.format(".\\%s", executableName);
-			Process executeProcess = new ProcessBuilder("cmd", "/c", executeCommand).directory(new File(directoryPath)).start();
-			executeProcess.waitFor();
 
-			// Step 4: Run gcov to generate the coverage report
-			String gcovCommand = String.format("gcov %s", cFilename);
-			Process gcovProcess = new ProcessBuilder("cmd", "/c", gcovCommand).directory(new File(directoryPath)).start();
-			gcovProcess.waitFor();
+				// Step 2: Link .o file to create executable
+				String linkCommand = String.format("gcc -fprofile-arcs -ftest-coverage -o %s %s -pthread", executableName, cFilename);
+				Process linkProcess = new ProcessBuilder("cmd", "/c", linkCommand).directory(new File(directoryPath)).start();
+				linkProcess.waitFor();
 
-			// Read and display the gcov output
-			BufferedReader reader = new BufferedReader(new InputStreamReader(gcovProcess.getInputStream()));
-			StringBuilder gcovOutput = new StringBuilder();
-			String line;
-			while ((line = reader.readLine()) != null) {
-				gcovOutput.append(line).append("\n");
-			}
-			displayGcovOutput(gcovOutput.toString()); // Implement this to display output in your GUI
+				// Step 3: Execute the compiled program
+				String executeCommand = String.format(".\\%s", executableName);
+				Process executeProcess = new ProcessBuilder("cmd", "/c", executeCommand).directory(new File(directoryPath)).start();
+				executeProcess.waitFor();
+
+				// Step 4: Run gcov to generate the coverage report
+				String gcovCommand = String.format("gcov %s", cFilename);
+				Process gcovProcess = new ProcessBuilder("cmd", "/c", gcovCommand).directory(new File(directoryPath)).start();
+				gcovProcess.waitFor();
+
+				// Read and display the gcov output
+				BufferedReader reader = new BufferedReader(new InputStreamReader(gcovProcess.getInputStream()));
+				StringBuilder gcovOutput = new StringBuilder();
+				String line;
+				while ((line = reader.readLine()) != null) {
+					gcovOutput.append(line).append("\n");
+				}
+				displayGcovOutput(gcovOutput.toString()); // Implement this to display output in your GUI
+			//}
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -586,8 +624,9 @@ public class MainPanel extends JPanel {
 		long statSolveConstraints = System.currentTimeMillis();
 		ArrayList<String> expressions = new ArrayList<String>();
 		long numtest = 0;
-		while(solver.check() == Status.SATISFIABLE) {
 
+		while(solver.check() == Status.SATISFIABLE) {
+			Map<String, Integer> variableUpdates = new HashMap<>();;
 			numtest += 1;
 			Model model = solver.getModel();
 			ArrayList<String> signatures = new ArrayList<String>();
@@ -605,6 +644,7 @@ public class MainPanel extends JPanel {
 				}
 				if (varName.endsWith("_0") && valueExpr != null && valueExpr instanceof IntNum) {
 					expressions.add(decl.getName() + " = " + model.getConstInterp(decl));
+					variableUpdates.put(decl.getName().toString(), ((IntNum) valueExpr).getInt());
 				}
 			}
 			Expr[] signals = new Expr[signatures.size()];
@@ -615,10 +655,12 @@ public class MainPanel extends JPanel {
 //            System.out.println("\n");
 			expressions.add("");
 			solver.add(ctx.mkAtLeast(signals, 1));
+			testdrive.add(variableUpdates);
 		}
 
 		resultTA.setText(String.valueOf(numtest));
 		String expressionsText = String.join("\n", expressions);
+
 
 // Update JTextPane with the combined String
 		testDrive.setText(expressionsText);

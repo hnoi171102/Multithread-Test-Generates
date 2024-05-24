@@ -53,10 +53,11 @@ public class Main {
     public static void main(String[] args) throws Exception {
 //        Integer timeOut = Integer.parseInt(args[0]);
 //        int numberRequest = Integer.parseInt(args[1]);
-        Integer timeOut = 100; // Timeout value
-        String directoryPath = "D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\";
-        ArrayList<String> filePaths = getTextFilePaths(directoryPath);
-        //String[] filePaths = {"D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\peterson-b.c"};
+        Integer timeOut = 1000; // Timeout value
+       // String directoryPath = "D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\";
+        //ArrayList<String> filePaths = getTextFilePaths(directoryPath);
+        String[] filePaths = {"D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\stateful01-1.c",
+                                "D:\\kiem thu\\Multithread Test Generates\\MTV\\Benchmark\\sv_comp\\stateful01-2.c"};
         for (String path : filePaths) {
             paths.add(path);
         }
